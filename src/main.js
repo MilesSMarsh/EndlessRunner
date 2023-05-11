@@ -15,5 +15,8 @@ let config = {
 
 let game = new Phaser.Game(config);
 
-let cursors = null;
+let keyLEFT = null;
+let keyRIGHT = null;
+let keyUP = null;
+let keySPACE = null;
 let isRunning = true;
