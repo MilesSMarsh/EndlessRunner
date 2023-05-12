@@ -28,8 +28,13 @@ class Play extends Phaser.Scene{
 
     create(){
 
+        this.isBeingPushed = false;
+
         this.isFiring = false;
         this.speed = 4;
+        this.gameSpeed = 200;
+        this.playerPoints = 0;
+        this.pointThreshold = 200;
         //-------------------create background------------------------
         this.mountain = this.add.tileSprite(0, 0, 700, 700, 'mountain').setOrigin(0, 0);
 
@@ -52,12 +57,7 @@ class Play extends Phaser.Scene{
 
         //--------------create runner instance---------------------
 
-
-
         this.runner = new Runner(this, 200, 550, 'runner', null, 100);
-
-
-
 
         //--------------create runner instance---------------------
 
@@ -72,22 +72,28 @@ class Play extends Phaser.Scene{
 
         //-------------create follower----------------
 
-        //-------------make enemy------------
-
-        this.enemyRed = new Enemy(this, 500, 550, 'redEnemy', null, 'red');
-
-        this.enemyGreen = new Enemy(this, 400, 550, 'greenEnemy', null, 'green');
-
-        this.enemyBlue = new Enemy(this, 300, 550, 'blueEnemy', null, '');
-
-        //-------------make enemy------------
-
-
+        
         //---------make follower queue----------
 
         this.follower_queue = [this.follower1, this.follower2, this.follower3];
 
         //---------make follower queue----------
+
+
+
+        //-------------make enemy group------------
+
+        this.enemyGroup = this.add.group({runChildUpdate: true});
+
+        //-------------make enemy group------------
+
+        //------------------make platform group-----------------
+
+        this.platformGroup = this.add.group({runChilUpdate: true});
+
+        //------------------make platform group-----------------
+
+
 
     
 
@@ -122,22 +128,35 @@ class Play extends Phaser.Scene{
 
 
         
-        //------------------------------platforms-------------------------------
+        //------------------------------ground-------------------------------
         
         this.groundBarrier = this.physics.add.staticSprite(0, 600, 'platform').setScale(4).setOrigin(0,0).setAlpha(0).refreshBody();
     
-        //-----------------------------platforms--------------------------------
+        //-----------------------------ground--------------------------------
+
     
     
         //--------physics colliders--------
 
-        this.physics.add.collider(this.runner, this.groundBarrier);
+        this.physics.add.collider(this.runner, this.groundBarrier, this.unslick, null, this);
+        this.physics.add.collider(this.runner, this.platformGroup, function(obj1, obj2){this.slick(this.isBeingPushed)}, null, this);
 
 
         //--------physics colliders--------
     
-    
-    
+        this.scoreConfig = {
+            fontFamily: 'Courier',
+            fontSize: '28px',
+            backgroundColor: '#F1F42F',
+            color: '#0000F0',
+            align: 'right',
+            padding: {
+              top: 5,
+              bottom: 5,
+            }
+        }
+        this.scoreText = this.add.text(50, 50, `points: ${this.playerPoints}`, this.scoreConfig);
+        this.time.delayedCall(2500, ()=> {this.spawnEnemy(this.gameSpeed);});
     
     }
 
@@ -156,6 +175,22 @@ class Play extends Phaser.Scene{
             isRunning = false;
         }
         //-----------character run and jump animation and functionality------------
+
+
+        //------------------Character Hit Enemy-----------------------
+
+        this.physics.world.collide(this.runner, this.enemyGroup, this.gameOver, null, this);
+
+        //------------------Character Hit Enemy-----------------------
+
+
+        //-------projectiles hit enemy-----------
+
+        this.physics.world.collide(this.follower1, this.enemyGroup, function(obj1, obj2){this.projectileHit(obj1, obj2)}, null, this);
+        this.physics.world.collide(this.follower2, this.enemyGroup, function(obj1, obj2){this.projectileHit(obj1, obj2)}, null, this);
+        this.physics.world.collide(this.follower3, this.enemyGroup, function(obj1, obj2){this.projectileHit(obj1, obj2)}, null, this);
+
+
 
         //-----------reset projectiles on world bounds collision----------
         if(this.follower1.x > this.game.config.width){
@@ -180,7 +215,6 @@ class Play extends Phaser.Scene{
         //-----------shoot first projectiles----------------
         if (Phaser.Input.Keyboard.JustDown(keyUP) && !this.isFiring)
         {
-            console.log(this.follower_queue[0]);
             this.follower_queue[0].fire();
             this.follower_queue.push(this.follower_queue.shift());
             this.follower_queue[0].x += 50;
@@ -188,7 +222,6 @@ class Play extends Phaser.Scene{
             this.follower_queue[1].x += 50;
             this.follower_queue[1].target = this.follower_queue[0];
             this.follower_queue[2].target = this.follower_queue[1];
-            console.log(this.follower_queue[0]);
         }
 
         //-----------shoot first projectiles----------------
@@ -207,13 +240,6 @@ class Play extends Phaser.Scene{
             this.follower_queue[2].target = this.follower_queue[1];
 
         }
-
-
-
-
-
-
-
         //-------------rotate projectile queue---------------
 
 
@@ -240,9 +266,88 @@ class Play extends Phaser.Scene{
         //--------------move background-------------------
 
 
+        if(this.playerPoints > this.pointThreshold){
+            this.gameSpeed += 20;
+            this.speed += 0.2;
+            this.pointThreshold += 200;
 
+        }
 
+    }
 
+    gameOver(){
+        console.log('Whoops I got hit');
+        this.isBeingPushed = true;
+    }
+
+    projectileHit(projectile, enemy){
+        if(enemy != undefined){
+            if(projectile.color === enemy.color){
+                projectile.x = 50;
+                projectile.setVelocityX(0);
+                enemy.destroy();
+                this.spawnEnemy(this.gameSpeed);
+                this.isFiring = false;
+                if(projectile.color == 'blue'){
+                    this.playerPoints += 50;
+                    this.scoreText.text = `Points: ${this.playerPoints}`;
+                }
+                else{
+                    this.playerPoints += 10;
+                    this.scoreText.text = `Points: ${this.playerPoints}`;
+                }
+
+                if(projectile.color == 'red'){
+                    this.playerPoints += 50;
+                    this.scoreText.text = `Points: ${this.playerPoints}`;
+                }
+                if(projectile.color == 'green'){
+                    this.spawnPlatform();
+                }
+            }
+            else{
+                projectile.x = 50;
+                projectile.setVelocityX(0);
+                this.isFiring = false;
+                enemy.setVelocityX(-this.gameSpeed);
+                if(projectile.color == 'red' || enemy.color == 'red'){
+                    this.runner.setVelocity(-600, -600);
+                }
+            }
+        }
+    }
+
+    spawnEnemy(gameSpeed){
+        var rando = Math.random();
+        let enemy = null;
+        if(rando < 0.33){
+            enemy = new Enemy(this, 700, this.runner.y, 'redEnemy', null, 'red', gameSpeed);
+        }
+        else if(rando >= 0.33 && rando < 0.66){
+            enemy = new Enemy(this, 700, this.runner.y, 'greenEnemy', null, 'green', gameSpeed);
+        }
+        else{
+            enemy = new Enemy(this, 700, this.runner.y, 'blueEnemy', null, 'blue', gameSpeed);
+        }
+
+        this.enemyGroup.add(enemy);
+    }
+
+    spawnPlatform(gameSpeed){
+        console.log('spawn platform');
+
+        let platform = new Platform(this, 700, 450, 'platform', null, gameSpeed);
+        this.platformGroup.add(platform);
+    }
+
+    slick(){
+        this.runner.setVelocityX(100);
+    }
+
+    unslick(beingPushed){
+        if(!beingPushed){
+            this.runner.setVelocity(0);
+        }
     }
 
     

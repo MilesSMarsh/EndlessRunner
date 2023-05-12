@@ -9,6 +9,8 @@ class Runner extends Phaser.Physics.Arcade.Sprite{
 
         this.health = health;
 
+        this.setDragX(0);
+
 
     }
 
