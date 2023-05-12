@@ -2,29 +2,6 @@ class Play extends Phaser.Scene{
     constructor(){
         super("playScene");
     }
-    preload(){
-        this.load.atlas('runner', 'assets/texture_atlas/runner.png', 'assets/JSON/runner.json');
-
-        this.load.image('mountain', './assets/mountain.png');
-
-        this.load.image('clouds', './assets/clouds.png');
-
-        this.load.image('ground', './assets/ground.png');
-
-        this.load.image('platform', './assets/platform.png');
-
-        this.load.image('projectileRed', './assets/projectileRed.png');
-
-        this.load.image('projectileGreen', './assets/projectileGreen.png');
-
-        this.load.image('projectileBlue', './assets/projectileBlue.png');
-
-        this.load.image('blueEnemy', './assets/blueEnemy.png');
-
-        this.load.image('redEnemy', './assets/redEnemy.png');
-
-        this.load.image('greenEnemy', './assets/greenEnemy.png');
-    }
 
     create(){
 
@@ -35,6 +12,16 @@ class Play extends Phaser.Scene{
         this.gameSpeed = 200;
         this.playerPoints = 0;
         this.pointThreshold = 200;
+
+
+
+        //-----------------------create sounds-----------------------
+        this.doip = this.sound.add('doip');
+        this.gameplayMusic = this.sound.add('gameplay');
+        this.gameplayMusic.loop = true;
+        this.gameplayMusic.play();
+        //-----------------------create sounds-----------------------
+
         //-------------------create background------------------------
         this.mountain = this.add.tileSprite(0, 0, 700, 700, 'mountain').setOrigin(0, 0);
 
@@ -273,16 +260,23 @@ class Play extends Phaser.Scene{
 
         }
 
+        if(this.runner.x < -this.runner.width){
+            this.gameOver();
+        }
+
     }
 
     gameOver(){
-        console.log('Whoops I got hit');
+        this.runner.setVelocity(-600, -300);
+        this.time.delayedCall(2500, ()=> {this.scene.start('deathScene')});
+        this.time.delayedCall(2500, ()=>{this.gameplayMusic.stop()});
         this.isBeingPushed = true;
     }
 
     projectileHit(projectile, enemy){
         if(enemy != undefined){
             if(projectile.color === enemy.color){
+                this.doip.play();
                 projectile.x = 50;
                 projectile.setVelocityX(0);
                 enemy.destroy();
